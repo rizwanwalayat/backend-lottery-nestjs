@@ -11,13 +11,16 @@ export class JwtStrategy extends PassportStrategy(Strategy){
             ignoreExpiration: false,
             secretOrKey: process.env.JWTKEY,
         });
+        // console.log('ExtractJwt', ExtractJwt.fromAuthHeaderAsBearerToken())
     }
 
     async validate(payload: any){
-        const user = await this.userService.findOneById(payload.id);
+        // console.log('Step 1: Validate User JWT Strategy', payload);
+
+        const user = await this.userService.getUserById(payload.id);
         if (!user){
             throw new UnauthorizedException('You are not authorized to perform the operation');
         }
-        return payload;
+        return user;
     }
 }

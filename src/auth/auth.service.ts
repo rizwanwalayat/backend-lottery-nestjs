@@ -1,17 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable , InternalServerErrorException} from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { User } from 'src/users/user.entity';
 
+export enum Provider{
+    GOOGLE = 'google',
+    FACEBOOK = 'facebook'
+}
 
 @Injectable()
 export class AuthService {
     constructor(
-        private readonly userService: UsersService,
+        private readonly usersService: UsersService,
         private readonly jwtService: JwtService) {}
 
     async validateUser(username: string, pass: string){
-        const user = await this.userService.findOneByEmail(username)
+        const user = await this.usersService.findOneByEmail(username)
         if (!user){
             return null;
         }
@@ -22,13 +27,13 @@ export class AuthService {
         }
 
         // tslint:disable-next-line: no-string-literal
-        const {password, ...result} = user['dataValues']
+        const {password, ...result} = user['dataValues'];
         return result;
     }
 
     public async create(user){
         const pass = await this.hashPassword(user.password);
-        const newUser = await this.userService.create({...user, password: pass});
+        const newUser = await this.usersService.create({...user, password: pass});
 
         // tslint:disable-next-line: no-string-literal
         const { password, ...result } = newUser['dataValues'];
@@ -38,7 +43,9 @@ export class AuthService {
         return {user: result, token}
     }
 
-    public async login(user){
+    public async login(userReq){
+        let user = await this.usersService.getUserById(userReq.id);
+        console.log('user', user)
         const token = await this.generateToken(user);
         return {user, token};
     }
@@ -56,5 +63,26 @@ export class AuthService {
     private async hashPassword(password){
         const hash = await bcrypt.hash(password, 10);
         return hash;
+    }
+
+    async validateOAuthLogin(thirdPartyUser: any): Promise<string>{
+        try 
+        {
+            let user = await this.usersService.findOneByThirdPartyId(thirdPartyUser.thirdPartyId);
+            console.log('user', user)
+
+            if (!user){                
+                console.log('Third Party', thirdPartyUser);
+                user = await this.usersService.registerOAuthUser(thirdPartyUser);       
+            }
+            let finalUser = await this.usersService.getUserById(user.id);
+            console.log('finalUser', finalUser)
+            const jwt: string = await this.generateToken(finalUser);
+            return jwt;
+        }
+        catch (err)
+        {
+            throw new InternalServerErrorException('validateOAuthLogin', err.message);
+        }
     }
 }

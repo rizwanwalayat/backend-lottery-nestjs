@@ -8,6 +8,6 @@ export class AppController {
   @Get()
   @Header('Content-Type', 'text/html')
   getHello(): {name: string} {
-    return {'name': 'Test'};//this.appService.getHello();
+    return {'name': 'Nest Js API'};//this.appService.getHello();
   }
 }
